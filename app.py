@@ -50,7 +50,11 @@ with st.form("staff_data_form", clear_on_submit=True):
     with col4:
         staff_no = st.text_input("Staff Number")
         rcc_no = st.text_input("RCC Number")
-        hire_date = st.date_input("Date of Hire")
+        hire_date = st.date_input(
+    "Date of Hire", 
+    min_value=datetime.date(1900, 1, 1), 
+    max_value=datetime.date(2100, 12, 31)
+)
     with col5:
         office = st.text_input("Office / Department")
         position = st.text_input("Position / Duty")
