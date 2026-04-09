@@ -28,7 +28,7 @@ with st.form("staff_data_form", clear_on_submit=True):
     
     with col1:
         name = st.text_input("Full Name")
-dob = st.date_input(
+        dob = st.date_input(
     "Date of Birth", 
     min_value=datetime.date(1900, 1, 1), 
     max_value=datetime.date.today()
