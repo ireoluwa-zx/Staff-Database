@@ -38,7 +38,7 @@ with st.form("staff_data_form", clear_on_submit=True):
         gender = st.selectbox("Gender", ["Select...", "Male", "Female"])
         marital_status = st.selectbox("Marital Status", ["Select...", "Single", "Married", "Divorced", "Widowed"])
     with col3:
-        phone = st.text_input("Phone Number")
+        phone = st.int_input("Phone Number")
         email = st.text_input("Email Address")
         
     address = st.text_input("Home Address")
