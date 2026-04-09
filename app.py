@@ -30,7 +30,7 @@ with st.form("staff_data_form", clear_on_submit=True):
         dob = st.date_input("Date of Birth")
         age = st.number_input("Age", min_value=16, max_value=100, step=1)
     with col2:
-        gender = st.selectbox("Gender", ["Select...", "Male", "Female", "Other"])
+        gender = st.selectbox("Gender", ["Select...", "Male", "Female"])
         marital_status = st.selectbox("Marital Status", ["Select...", "Single", "Married", "Divorced", "Widowed"])
     with col3:
         phone = st.text_input("Phone Number")
