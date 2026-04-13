@@ -1,25 +1,23 @@
 import streamlit as st
 import pandas as pd
-import os
 import datetime
+from streamlit_gsheets import GSheetsConnection
 
-# File path for the CSV database
-DATA_FILE = 'staff_database.csv'
-
-# Initialize the CSV file if it doesn't exist to prevent errors
-if not os.path.exists(DATA_FILE):
-    df_init = pd.DataFrame(columns=[
-        "Name", "Staff No", "RCC No", "Phone No", "Email", "Age", "Date of Birth",
-        "Gender", "Marital Status", "Home Address", 
-        "Office/Department", "Position/Duty", "Employment Type", "Hire Date", "Salary", 
-        "Next of Kin", "Next of Kin Contact"
-    ])
-    df_init.to_csv(DATA_FILE, index=False)
-
-# Make the page wider for better data viewing
 st.set_page_config(page_title="Staff Directory Pro", layout="wide")
 st.title("Enterprise Staff Database")
 st.markdown("Prototype interface for capturing and managing employee records.")
+
+# Establish connection to Google Sheets
+conn = st.connection("gsheets", type=GSheetsConnection)
+
+# Fetch existing data from the sheet
+try:
+    # We read the first 17 columns. ttl=0 ensures it doesn't cache stale data.
+    existing_data = conn.read(worksheet="Sheet1", usecols=list(range(17)), ttl=0)
+    existing_data = existing_data.dropna(how="all") # Remove empty rows
+except Exception as e:
+    st.error("Error connecting to Google Sheets. Please check your Secrets configuration.")
+    st.stop()
 
 # --- DATA COLLECTION FORM ---
 with st.form("staff_data_form", clear_on_submit=True):
@@ -28,14 +26,10 @@ with st.form("staff_data_form", clear_on_submit=True):
     
     with col1:
         name = st.text_input("Full Name")
-        dob = st.date_input(
-    "Date of Birth", 
-    min_value=datetime.date(1900, 1, 1), 
-    max_value=datetime.date.today()
-)
+        dob = st.date_input("Date of Birth", min_value=datetime.date(1900, 1, 1), max_value=datetime.date.today())
         age = st.number_input("Age", min_value=16, max_value=100, step=1)
     with col2:
-        gender = st.selectbox("Gender", ["Select...", "Male", "Female"])
+        gender = st.selectbox("Gender", ["Select...", "Male", "Female", "Other"])
         marital_status = st.selectbox("Marital Status", ["Select...", "Single", "Married", "Divorced", "Widowed"])
     with col3:
         phone = st.text_input("Phone Number")
@@ -50,11 +44,7 @@ with st.form("staff_data_form", clear_on_submit=True):
     with col4:
         staff_no = st.text_input("Staff Number")
         rcc_no = st.text_input("RCC Number")
-        hire_date = st.date_input(
-    "Date of Hire", 
-    min_value=datetime.date(1900, 1, 1), 
-    max_value=datetime.date(2100, 12, 31)
-)
+        hire_date = st.date_input("Date of Hire", min_value=datetime.date(1900, 1, 1), max_value=datetime.date(2100, 12, 31))
     with col5:
         office = st.text_input("Office / Department")
         position = st.text_input("Position / Duty")
@@ -76,40 +66,32 @@ with st.form("staff_data_form", clear_on_submit=True):
         if name.strip() == "" or staff_no.strip() == "":
             st.error("Name and Staff Number are mandatory fields!")
         else:
-            # Create a new record from the inputs
+            # Create a new record
             new_record = pd.DataFrame([{
                 "Name": name, "Staff No": staff_no, "RCC No": rcc_no, "Phone No": phone, 
-                "Email": email, "Age": age, "Date of Birth": dob, "Gender": gender, 
-                "Marital Status": marital_status, "Home Address": address,
+                "Email": email, "Age": age, "Date of Birth": dob.strftime("%Y-%m-%d"), 
+                "Gender": gender, "Marital Status": marital_status, "Home Address": address,
                 "Office/Department": office, "Position/Duty": position, 
-                "Employment Type": emp_type, "Hire Date": hire_date, "Salary": salary,
-                "Next of Kin": nok_name, "Next of Kin Contact": nok_contact
+                "Employment Type": emp_type, "Hire Date": hire_date.strftime("%Y-%m-%d"), 
+                "Salary": salary, "Next of Kin": nok_name, "Next of Kin Contact": nok_contact
             }])
             
-            # Read current CSV, append new data, and save back to CSV
-            df = pd.read_csv(DATA_FILE)
-            df = pd.concat([df, new_record], ignore_index=True)
-            df.to_csv(DATA_FILE, index=False)
+            # Append to existing data and update the Google Sheet
+            updated_df = pd.concat([existing_data, new_record], ignore_index=True)
+            conn.update(worksheet="Sheet1", data=updated_df)
             
-            st.success(f"Record for {name} ({staff_no}) saved successfully!")
+            # Clear the cache so the viewer below immediately shows the new data
+            st.cache_data.clear()
+            st.success(f"Record for {name} saved directly to Google Sheets!")
 
 # --- DATABASE VIEWER ---
 st.divider()
-st.subheader("Staff Database Viewer")
+st.subheader("Live Database Viewer")
 
-if os.path.exists(DATA_FILE):
-    current_db = pd.read_csv(DATA_FILE)
-    if not current_db.empty:
-        # Display as an interactive dataframe
-        st.dataframe(current_db, use_container_width=True)
-        
-        # Download button for backups
-        csv_export = current_db.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="📥 Download Database as CSV",
-            data=csv_export,
-            file_name='company_staff_database.csv',
-            mime='text/csv',
-        )
-    else:
-        st.info("The staff database is currently empty. Add a record above.")
+# Fetch fresh data for the viewer
+current_db = conn.read(worksheet="Sheet1", usecols=list(range(17)), ttl=0).dropna(how="all")
+
+if not current_db.empty:
+    st.dataframe(current_db, use_container_width=True)
+else:
+    st.info("The staff database is currently empty. Add a record above.")
